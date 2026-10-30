@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#2e7d32" />
+<title>Earning User App</title>
+<style>
+  :root { --primary: #2e7d32; --bg: #f5f6fa; --card: #ffffff; --text: #1a1a1a; --text-muted: #6b7280; --error: #d32f2f; --warning: #ef6c00; --border: #e0e0e0; --radius: 14px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.5; }
+  .hidden { display: none !important; }
+  .screen { min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* LOADING */
+  #loadingScreen { justify-content: center; align-items: center; background: var(--bg); }
+  .spinner { width: 40px; height: 40px; border: 4px solid rgba(46,125,50,0.2); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+  /* AUTH */
+  #authScreen { justify-content: center; align-items: center; padding: 24px; background: linear-gradient(160deg, #2e7d32 0%, #1b5e20 100%); }
+  .auth-card { background: var(--card); border-radius: var(--radius); padding: 32px 24px; width: 100%; max-width: 420px; box-shadow: 0 12px 40px rgba(0,0,0,0.25); }
+  .brand-icon { width: 56px; height: 56px; border-radius: 14px; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700; margin: 0 auto 16px; }
+  h1 { font-size: 22px; text-align: center; margin-bottom: 4px; }
+  .subtitle { text-align: center; color: var(--text-muted); font-size: 13px; margin-bottom: 24px; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .field input, .field select { width: 100%; padding: 13px 14px; font-size: 15px; border: 1.5px solid var(--border); border-radius: 10px; outline: none; background: #fff; }
+  .field input:focus, .field select:focus { border-color: var(--primary); }
+  .btn { width: 100%; padding: 14px; font-size: 15px; font-weight: 600; border: none; border-radius: 10px; cursor: pointer; background: var(--primary); color: #fff; margin-top: 8px; transition: 0.2s; }
+  .btn:disabled { opacity: 0.6; }
+  .link-text { text-align: center; font-size: 13px; color: var(--primary); cursor: pointer; margin-top: 16px; font-weight: 600; }
+  .alert { margin-top: 14px; padding: 11px 14px; border-radius: 10px; font-size: 13px; text-align: center; }
+  .alert.error { background: #fdecea; color: var(--error); }
+
+  /* APP */
+  .topbar { background: var(--primary); color: #fff; padding: 16px 18px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+  .topbar h2 { font-size: 17px; font-weight: 600; }
+  .content { padding: 18px; flex: 1; padding-bottom: 90px; }
+  .balance-card { background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%); color: #fff; border-radius: var(--radius); padding: 24px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(46,125,50,0.3); }
+  .balance-label { font-size: 13px; opacity: 0.9; margin-bottom: 8px; }
+  .balance-amount { font-size: 32px; font-weight: 700; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: var(--card); border-radius: var(--radius); padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); text-align: center; }
+  .stat-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+  .stat-value { font-size: 18px; font-weight: 700; color: var(--primary); }
+  .section-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+  .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .action-btn { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .action-btn span.icon { font-size: 24px; }
+
+  /* NOTICE BANNER */
+  .notice-banner { background: #fff3cd; color: #856404; padding: 12px; border-radius: 10px; font-size: 13px; margin-bottom: 15px; border: 1px solid #ffeeba; display: flex; align-items: center; gap: 10px; }
+  .notice-banner strong { color: #856404; }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+  .modal-content { background: #fff; border-radius: var(--radius); padding: 24px; width: 100%; max-width: 400px; max-height: 90vh; overflow-y: auto; }
+  .modal-content h3 { margin-bottom: 16px; }
+
+  .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid var(--border); display: flex; padding: 8px 0 calc(8px + env(safe-area-inset-bottom)); z-index: 20; }
+  .bottom-nav button { flex: 1; background: none; border: none; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--text-muted); font-size: 10px; font-weight: 500; cursor: pointer; }
+  .bottom-nav button .icon { font-size: 20px; }
+  .bottom-nav button.active { color: var(--primary); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; animation: fadeIn 0.2s; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  
+  .tx-item { background: #fff; padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; border-left: 4px solid var(--primary); }
+
+  /* PLAN CARDS */
+  .plan-card { background: linear-gradient(145deg, #0d1b2a, #1b263b); color: #fff; border-radius: var(--radius); padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+  .plan-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; margin-bottom: 12px; }
+  .plan-name { font-size: 18px; font-weight: 700; color: #4fc3f7; }
+  .plan-duration { font-size: 12px; color: #bbb; }
+  .plan-details { display: flex; justify-content: space-between; margin-bottom: 12px; }
+  .plan-detail-box { background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 8px; }
+  .plan-detail-label { font-size: 11px; color: #bbb; }
+  .plan-detail-value { font-size: 16px; font-weight: bold; }
+  .invest-btn { width: 100%; background: #00bcd4; color: #fff; border: none; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; margin-top: 10px; }
+
+  .active-plan-card { background: #fff; border: 2px solid var(--primary); border-radius: var(--radius); padding: 16px; margin-bottom: 20px; text-align: center; }
+  .claim-btn { background: var(--success); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 15px; width: 100%; margin-top: 10px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div id="loadingScreen" class="screen"><div class="spinner"></div></div>
+
+<div id="authScreen" class="screen hidden">
+  <div class="auth-card">
+    <div class="brand-icon">E</div>
+    <h1 id="authTitle">Welcome Back</h1>
+    <p class="subtitle" id="authSubtitle">Login to continue earning</p>
+    <form id="authForm">
+      <div id="nameField" class="field hidden"><label>Full Name</label><input id="fullName" type="text" placeholder="Ali Khan" /></div>
+      <div class="field"><label>Email</label><input id="email" type="email" required placeholder="user@example.com" /></div>
+      <div class="field"><label>Password</label><input id="password" type="password" required placeholder="••••••••" /></div>
+      <div id="referralField" class="field hidden"><label>Referral Code (Optional)</label><input id="refCode" type="text" placeholder="e.g. TAHA123" style="text-transform: uppercase;" /></div>
+      <button id="authBtn" type="submit" class="btn">Login</button>
+    </form>
+    <div id="authError" class="alert error hidden"></div>
+    <div class="link-text" id="toggleAuth" onclick="toggleAuthMode()">New here? Create an account</div>
+  </div>
+</div>
+
+<div id="appScreen" class="screen hidden">
+  <div class="topbar">
+    <div><h2>Hello, <span id="userNameDisplay">User</span></h2><div style="font-size:11px; opacity:0.85;" id="userEmailDisplay">—</div></div>
+    <button style="background:rgba(255,255,255,0.2); color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;" onclick="handleLogout()">Logout</button>
+  </div>
+
+  <div class="content">
+    <!-- HOME TAB -->
+    <div id="tab-home" class="tab-panel active">
+      
+      <!-- NOTICE BANNER -->
+      <div id="noticeBanner" class="notice-banner hidden">
+        <span style="font-size:18px;">📢</span>
+        <div id="noticeText" style="flex:1; font-weight:500;">Welcome to the app!</div>
+      </div>
+
+      <div class="balance-card">
+        <div class="balance-label">Available Balance</div>
+        <div class="balance-amount">Rs. <span id="userBalance">0.00</span></div>
+      </div>
+
+      <div id="activePlanSection" class="hidden">
+        <div class="section-title">My Active Plan</div>
+        <div class="active-plan-card">
+          <h3 id="apName" style="color:var(--primary); margin-bottom:5px;">VIP Plan</h3>
+          <p style="font-size:13px; color:gray;">Daily Reward: <strong id="apReward">0</strong> PKR</p>
+          <p style="font-size:12px; color:gray; margin-top:5px;">Last Claimed: <span id="apLastClaim">Never</span></p>
+          <button class="claim-btn" id="claimBtn" onclick="claimDailyReward()">Claim Daily Reward</button>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="stat-card"><div class="stat-label">Pending Deposit</div><div class="stat-value">Rs. <span id="pendingDeposit">0.00</span></div></div>
+        <div class="stat-card"><div class="stat-label">Total Earned</div><div class="stat-value">Rs. 0.00</div></div>
+      </div>
+
+      <div class="section-title">Quick Actions</div>
+      <div class="action-grid">
+        <div class="action-btn" onclick="openModal('deposit')"><span class="icon">💰</span> Deposit</div>
+        <div class="action-btn" onclick="openModal('withdraw')"><span class="icon">💸</span> Withdraw</div>
+        <div class="action-btn" onclick="switchTab('plans')"><span class="icon">👑</span> VIP Plans</div>
+        <div class="action-btn" onclick="switchTab('team')"><span class="icon">🤝</span> My Team</div>
+      </div>
+    </div>
+
+    <!-- TEAM TAB -->
+    <div id="tab-team" class="tab-panel">
+      <div class="section-title">My Team</div>
+      <div class="stat-card" style="text-align:left; margin-bottom:15px;">
+        <p style="margin-bottom:8px;"><strong>Your Referral Code:</strong></p>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+           <h2 id="myRefCode" style="color:var(--primary);">LOADING...</h2>
+           <button class="btn" style="width:auto; padding:8px 12px; margin:0;" onclick="copyRefCode()">Copy</button>
+        </div>
+      </div>
+      <div class="section-title">Referrals List</div>
+      <div id="teamList"><div style="text-align:center; padding:20px; color:var(--text-muted);">Loading...</div></div>
+    </div>
+
+    <!-- VIP PLANS TAB -->
+    <div id="tab-plans" class="tab-panel">
+      <div class="section-title">Available VIP Plans</div>
+      <div id="plansList"><div style="text-align:center; padding:20px; color:var(--text-muted);">Loading plans...</div></div>
+    </div>
+
+    <!-- HISTORY TAB -->
+    <div id="tab-history" class="tab-panel">
+      <div class="section-title">Transaction History</div>
+      <div id="transactionList"><div style="text-align:center; padding:20px; color:var(--text-muted);">Loading...</div></div>
+    </div>
+    
+    <!-- PROFILE TAB -->
+    <div id="tab-profile" class="tab-panel">
+      <div class="section-title">My Profile</div>
+      <div class="stat-card" style="text-align:left;">
+        <p style="margin-bottom:8px;"><strong>Name:</strong> <span id="profileName">—</span></p>
+        <p style="margin-bottom:8px;"><strong>Email:</strong> <span id="profileEmail">—</span></p>
+        <p><strong>Status:</strong> <span id="profileStatus" style="color:var(--primary); font-weight:bold;">Active</span></p>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <button data-tab="home" class="active" onclick="switchTab('home')"><span class="icon">🏠</span> Home</button>
+    <button data-tab="plans" onclick="switchTab('plans')"><span class="icon">👑</span> Plans</button>
+    <button data-tab="team" onclick="switchTab('team')"><span class="icon">🤝</span> Team</button>
+    <button data-tab="history" onclick="switchTab('history')"><span class="icon">📜</span> History</button>
+    <button data-tab="profile" onclick="switchTab('profile')"><span class="icon">👤</span> Profile</button>
+  </nav>
+</div>
+
+<div id="actionModal" class="modal-overlay hidden">
+  <div class="modal-content">
+    <h3 id="modalTitle">Deposit Request</h3>
+    
+    <!-- 🔥 NAYA: Deposit Instructions -->
+    <div id="depositInstructions" class="hidden" style="background:#e8f5e9; padding:10px; border-radius:8px; margin-bottom:15px; font-size:13px; color:#2e7d32; text-align:center;">
+      <p style="margin-bottom:5px;">Please send payment to:</p>
+      <strong style="font-size:16px;" id="instrNumber">—</strong><br>
+      <span id="instrTitle">—</span> (<span id="instrMethod">—</span>)
+      <p style="margin-top:5px; font-size:11px; color:#555;">After payment, fill the details below.</p>
+    </div>
+
+    <div class="field">
+      <label>Payment Method</label>
+      <select id="modalMethod">
+        <option value="Easypaisa">Easypaisa</option>
+        <option value="JazzCash">JazzCash</option>
+        <option value="Bank Transfer">Bank Transfer</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Amount (PKR)</label>
+      <input id="modalAmount" type="number" placeholder="e.g. 1000" />
+    </div>
+
+    <div id="depositExtraFields">
+      <div class="field">
+        <label>Your Sender Account Number</label>
+        <input id="modalAccNo" type="text" placeholder="e.g. 03001234567" />
+      </div>
+      <div class="field">
+        <label>Transaction ID / TID</label>
+        <input id="modalTxId" type="text" placeholder="e.g. 123456789" />
+      </div>
+    </div>
+
+    <div id="withdrawExtraFields" class="hidden">
+      <div class="field">
+        <label>Your Account Number</label>
+        <input id="modalAccNoW" type="text" placeholder="e.g. 03001234567" />
+      </div>
+      <div class="field">
+        <label>Account Title (Full Name)</label>
+        <input id="modalAccTitleW" type="text" placeholder="e.g. Ali Khan" />
+      </div>
+    </div>
+
+    <div id="modalError" class="alert error hidden"></div>
+    <button class="btn" id="modalSubmitBtn" onclick="submitRequest()">Submit Request</button>
+    <button class="btn" style="background:#ccc; color:#333; margin-top:8px;" onclick="closeModal()">Cancel</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+import { getFirestore, doc, setDoc, collection, addDoc, query, where, serverTimestamp, onSnapshot, getDocs, runTransaction, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDxlvVuaz36spNRfPnimsPJBTWWFT7fhbk", authDomain: "earning-admin-app-d9b38.firebaseapp.com", projectId: "earning-admin-app-d9b38", storageBucket: "earning-admin-app-d9b38.firebasestorage.app", messagingSenderId: "602619033913", appId: "1:602619033913:web:f2282f455cd240139310e8"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const $ = (id) => document.getElementById(id);
+const show = (id) => $(id).classList.remove("hidden");
+const hide = (id) => $(id).classList.add("hidden");
+
+let isLoginMode = true;
+let currentUserData = null;
+let currentActionType = "";
+let unsubscribeUser = null, unsubscribeTx = null, unsubscribeDep = null, unsubscribeActivePlan = null, unsubscribeTeam = null;
+let activePlanData = null, activePlanId = null;
+let plansLoaded = false;
+
+// GLOBAL SETTINGS LOAD
+let appSettings = {};
+async function loadGlobalSettings() {
+  try {
+    const snap = await getDoc(doc(db, "appSettings", "config"));
+    if(snap.exists()) {
+      appSettings = snap.data();
+      // Show Notice
+      if(appSettings.notice && appSettings.notice.trim() !== "") {
+        $("noticeText").textContent = appSettings.notice;
+        show("noticeBanner");
+      } else {
+        hide("noticeBanner");
+      }
+    }
+  } catch(e) { console.log("Settings load error", e); }
+}
+
+window.toggleAuthMode = function() {
+  isLoginMode = !isLoginMode; hide("authError");
+  if (isLoginMode) { $("authTitle").textContent = "Welcome Back"; $("authBtn").textContent = "Login"; $("toggleAuth").textContent = "New here? Create an account"; hide("nameField"); hide("referralField"); }
+  else { $("authTitle").textContent = "Create Account"; $("authBtn").textContent = "Sign Up"; $("toggleAuth").textContent = "Already have an account? Login"; show("nameField"); show("referralField"); }
+}
+
+$("authForm").addEventListener("submit", async (e) => {
+  e.preventDefault(); hide("authError");
+  const email = $("email").value.trim(), password = $("password").value, fullName = $("fullName").value.trim(), refCode = $("refCode").value.trim().toUpperCase();
+  const btn = $("authBtn"); btn.disabled = true; btn.textContent = "Please wait...";
+  
+  try {
+    if (isLoginMode) { 
+      await signInWithEmailAndPassword(auth, email, password); 
+    } else {
+      if (!fullName) throw new Error("Full name required");
+      const userCred = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(userCred.user, { displayName: fullName });
+      
+      const newRefCode = fullName.substring(0,3).toUpperCase() + Math.floor(1000 + Math.random() * 9000);
+      let referrerId = null;
+      
+      if (refCode) {
+        const q = query(collection(db, "users"), where("referralCode", "==", refCode));
+        const snap = await getDocs(q);
+        if (!snap.empty) { referrerId = snap.docs[0].id; } 
+        else { alert("Invalid Referral Code! Signup continuing without referrer."); }
+      }
+
+      await setDoc(doc(db, "users", userCred.user.uid), { 
+        fullName, email, balance: 0, status: "active", 
+        referralCode: newRefCode, referredBy: referrerId, createdAt: serverTimestamp() 
+      });
+
+      if (referrerId) {
+        await addDoc(collection(db, "referrals"), {
+          referrerId: referrerId, referredId: userCred.user.uid, referredName: fullName, createdAt: serverTimestamp()
+        });
+        
+        let refBonus = appSettings.referralBonus || 50; 
+
+        await runTransaction(db, async (t) => {
+          const rRef = doc(db, "users", referrerId);
+          const rDoc = await t.get(rRef);
+          if(rDoc.exists()){
+            t.update(rRef, { balance: (rDoc.data().balance || 0) + refBonus });
+            t.set(doc(collection(db, "transactions")), { userId: referrerId, amount: refBonus, type: "Referral Bonus", createdAt: serverTimestamp() });
+          }
+        });
+      }
+    }
+  } catch (err) {
+    let msg = err.message;
+    if (err.code === "auth/invalid-credential") msg = "Email ya password ghalat hai.";
+    if (err.code === "auth/email-already-in-use") msg = "Ye email pehle se registered hai.";
+    $("authError").textContent = msg; show("authError");
+    btn.disabled = false; btn.textContent = isLoginMode ? "Login" : "Sign Up";
+  }
+});
+
+onAuthStateChanged(auth, async (user) => {
+  if (unsubscribeUser) unsubscribeUser(); if (unsubscribeTx) unsubscribeTx(); if (unsubscribeDep) unsubscribeDep(); if (unsubscribeActivePlan) unsubscribeActivePlan(); if (unsubscribeTeam) unsubscribeTeam();
+
+  if (user) {
+    hide("authScreen"); hide("appScreen"); show("loadingScreen");
+    
+    loadGlobalSettings(); // Load notice & settings
+
+    unsubscribeUser = onSnapshot(doc(db, "users", user.uid), async (docSnap) => {
+      if (docSnap.exists()) {
+        currentUserData = docSnap.data();
+        
+        if (currentUserData.status === "suspended") {
+          alert("Aapka account suspend kar diya gaya hai. Admin se rabta karein.");
+          signOut(auth);
+          return;
+        }
+
+        if (!currentUserData.referralCode) {
+          const newRefCode = (currentUserData.fullName || "USER").substring(0, 3).toUpperCase() + Math.floor(1000 + Math.random() * 9000);
+          await updateDoc(doc(db, "users", user.uid), { referralCode: newRefCode });
+          currentUserData.referralCode = newRefCode;
+        }
+
+        $("userNameDisplay").textContent = (currentUserData.fullName || "User").split(' ')[0];
+        $("userEmailDisplay").textContent = user.email;
+        $("userBalance").textContent = (currentUserData.balance || 0).toFixed(2);
+        $("profileName").textContent = currentUserData.fullName;
+        $("profileEmail").textContent = user.email;
+        $("profileStatus").textContent = currentUserData.status || "Active";
+        $("myRefCode").textContent = currentUserData.referralCode || "N/A";
+        
+        hide("loadingScreen"); hide("authScreen"); show("appScreen");
+      } else { signOut(auth); }
+    });
+    
+    loadTransactions(user.uid); loadPendingDeposits(user.uid); loadActivePlan(user.uid); loadTeam(user.uid);
+    if(!plansLoaded) { loadPlans(); plansLoaded = true; }
+  } else {
+    currentUserData = null; plansLoaded = false; activePlanData = null;
+    hide("loadingScreen"); hide("appScreen"); show("authScreen");
+  }
+});
+
+window.handleLogout = function() { signOut(auth); }
+window.switchTab = function(name) {
+  document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
+  document.querySelectorAll(".bottom-nav button").forEach((b) => b.classList.remove("active"));
+  $("tab-" + name)?.classList.add("active");
+  document.querySelector(`.bottom-nav button[data-tab="${name}"]`)?.classList.add("active");
+}
+
+window.copyRefCode = function() {
+  const code = $("myRefCode").textContent;
+  if(code !== "N/A" && code !== "LOADING...") {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(code).then(() => { alert("Referral Code Copied: " + code); }).catch(() => { prompt("Copy your code manually:", code); });
+    } else { prompt("Copy your code manually:", code); }
+  } else { alert("Code load ho raha hai, thori der baad try karein."); }
+}
+
+window.openModal = function(type) {
+  currentActionType = type; 
+  $("modalTitle").textContent = type === 'deposit' ? "Deposit Request" : "Withdraw Request";
+  $("modalAmount").value = ""; $("modalTxId").value = ""; $("modalAccNo").value = ""; $("modalAccNoW").value = ""; $("modalAccTitleW").value = "";
+  hide("modalError");
+  
+  if (type === 'deposit') { 
+    show("depositExtraFields"); 
+    hide("withdrawExtraFields"); 
+    
+    // 🔥 NAYA: Show Deposit Instructions
+    if(appSettings.paymentNumber) {
+      $("instrNumber").textContent = appSettings.paymentNumber;
+      $("instrTitle").textContent = appSettings.paymentTitle || "Account";
+      $("instrMethod").textContent = appSettings.paymentMethod || "Method";
+      show("depositInstructions");
+    } else {
+      $("instrNumber").textContent = "Admin has not set payment info.";
+      hide("depositInstructions");
+    }
+    
+  } else { 
+    hide("depositExtraFields"); 
+    hide("depositInstructions");
+    show("withdrawExtraFields"); 
+  }
+  show("actionModal");
+}
+window.closeModal = function() { hide("actionModal"); }
+
+window.submitRequest = async function() {
+  const method = $("modalMethod").value;
+  const amount = parseFloat($("modalAmount").value);
+  
+  if (!amount || amount <= 0) { $("modalError").textContent = "Valid amount dalen"; show("modalError"); return; }
+
+  $("modalSubmitBtn").disabled = true; $("modalSubmitBtn").textContent = "Submitting...";
+
+  try {
+    const user = auth.currentUser;
+    let reqData = { userId: user.uid, userName: currentUserData.fullName, userEmail: user.email, amount, method, status: "pending", createdAt: serverTimestamp() };
+
+    if (currentActionType === 'deposit') {
+      const accNo = $("modalAccNo").value.trim();
+      const txId = $("modalTxId").value.trim();
+      if (!accNo) throw new Error("Sender Account Number required");
+      if (!txId) throw new Error("Transaction ID required");
+      reqData.senderAccount = accNo;
+      reqData.txId = txId;
+      await addDoc(collection(db, "depositRequests"), reqData);
+      alert("Deposit request bhej di gayi hai! Admin verify karega.");
+    } else {
+      const accNo = $("modalAccNoW").value.trim();
+      const accTitle = $("modalAccTitleW").value.trim();
+      if (!accNo) throw new Error("Account Number required");
+      if (!accTitle) throw new Error("Account Title required");
+      if (currentUserData.balance < amount) throw new Error("Aapke paas itne balance nahi hain");
+      
+      reqData.accountNumber = accNo;
+      reqData.accountTitle = accTitle;
+      await addDoc(collection(db, "withdrawalRequests"), reqData);
+      alert("Withdrawal request bhej di gayi hai! Admin verify karega.");
+    }
+    closeModal();
+  } catch (err) { 
+    $("modalError").textContent = "Error: " + err.message; 
+    show("modalError"); 
+  } finally { 
+    $("modalSubmitBtn").disabled = false; 
+    $("modalSubmitBtn").textContent = "Submit Request"; 
+  }
+}
+
+async function loadPlans() {
+  try {
+    const snapshot = await getDocs(collection(db, "plans"));
+    const plansList = $("plansList");
+    if (snapshot.empty) { plansList.innerHTML = '<div style="text-align:center; padding:20px; color:gray;">No plans available.</div>'; return; }
+    let html = "";
+    snapshot.forEach((docSnap) => {
+      const p = docSnap.data();
+      html += `<div class="plan-card"><div class="plan-header"><div class="plan-name">${p.name}</div><div class="plan-duration">${p.durationDays} Days</div></div><div class="plan-details"><div class="plan-detail-box"><div class="plan-detail-label">Investment</div><div class="plan-detail-value">Rs ${p.price}</div></div><div class="plan-detail-box"><div class="plan-detail-label">Daily Profit</div><div class="plan-detail-value">Rs ${p.dailyReward}</div></div></div><button class="invest-btn" onclick="purchasePlan('${docSnap.id}', ${p.price}, '${p.name}')">INVEST NOW</button></div>`;
+    });
+    plansList.innerHTML = html;
+  } catch (e) { $("plansList").innerHTML = '<div style="color:red; text-align:center;">Error loading plans.</div>'; }
+}
+
+window.purchasePlan = async function(planId, price, planName) {
+  if (!currentUserData) return;
+  if (currentUserData.balance < price) { alert("Aapke paas balance kam hai! Pehle deposit karein."); return; }
+  const confirmBuy = confirm(`Kya aap "${planName}" plan Rs. ${price} mein kharidna chahte hain?`);
+  if (!confirmBuy) return;
+  try {
+    const user = auth.currentUser;
+    await runTransaction(db, async (transaction) => {
+      const userRef = doc(db, "users", user.uid);
+      const userDoc = await transaction.get(userRef);
+      const currentBal = userDoc.data().balance || 0;
+      if (currentBal < price) throw new Error("Insufficient balance!");
+      transaction.update(userRef, { balance: currentBal - price });
+      const purchaseRef = doc(collection(db, "userPlans"));
+      transaction.set(purchaseRef, { userId: user.uid, userName: currentUserData.fullName, userEmail: user.email, planId, planName, pricePaid: price, status: "active", purchasedAt: serverTimestamp(), lastClaimedAt: null });
+      transaction.set(doc(collection(db, "transactions")), { userId: user.uid, amount: price, type: `Purchased ${planName}`, createdAt: serverTimestamp() });
+    });
+    alert("🎉 Mubarak ho! Aapne plan kharid liya hai.");
+  } catch (e) { alert("❌ Error: " + e.message); }
+}
+
+function loadActivePlan(uid) {
+  const q = query(collection(db, "userPlans"), where("userId", "==", uid), where("status", "==", "active"));
+  unsubscribeActivePlan = onSnapshot(q, (snapshot) => {
+    if (!snapshot.empty) {
+      const docSnap = snapshot.docs[0];
+      activePlanId = docSnap.id;
+      activePlanData = docSnap.data();
+      show("activePlanSection");
+      $("apName").textContent = activePlanData.planName;
+      
+      getDocs(query(collection(db, "plans"), where("name", "==", activePlanData.planName))).then(pSnap => {
+        if(!pSnap.empty) {
+          const p = pSnap.docs[0].data();
+          $("apReward").textContent = p.dailyReward;
+          activePlanData.dailyReward = p.dailyReward;
+        }
+      });
+      if (activePlanData.lastClaimedAt) {
+        const lastDate = activePlanData.lastClaimedAt.toDate();
+        $("apLastClaim").textContent = lastDate.toLocaleDateString();
+        const today = new Date();
+        if (lastDate.toDateString() === today.toDateString()) {
+          $("claimBtn").disabled = true; $("claimBtn").textContent = "Already Claimed Today"; $("claimBtn").style.background = "gray";
+        } else {
+          $("claimBtn").disabled = false; $("claimBtn").textContent = "Claim Daily Reward"; $("claimBtn").style.background = "var(--success)";
+        }
+      } else {
+        $("apLastClaim").textContent = "Never";
+        $("claimBtn").disabled = false; $("claimBtn").textContent = "Claim Daily Reward"; $("claimBtn").style.background = "var(--success)";
+      }
+    } else { hide("activePlanSection"); }
+  });
+}
+
+window.claimDailyReward = async function() {
+  if (!activePlanId || !activePlanData) return;
+  const rewardAmount = activePlanData.dailyReward;
+  if (!rewardAmount) return alert("Reward amount not found.");
+  $("claimBtn").disabled = true; $("claimBtn").textContent = "Claiming...";
+  try {
+    const user = auth.currentUser;
+    await runTransaction(db, async (transaction) => {
+      const userRef = doc(db, "users", user.uid); const planRef = doc(db, "userPlans", activePlanId);
+      const userDoc = await transaction.get(userRef);
+      if (!userDoc.exists()) throw new Error("User not found");
+      transaction.update(userRef, { balance: (userDoc.data().balance || 0) + rewardAmount });
+      transaction.update(planRef, { lastClaimedAt: serverTimestamp() });
+      transaction.set(doc(collection(db, "transactions")), { userId: user.uid, amount: rewardAmount, type: `Daily Reward (${activePlanData.planName})`, createdAt: serverTimestamp() });
+    });
+    alert(`🎉 Aapne Rs. ${rewardAmount} ka reward claim kar liya hai!`);
+  } catch (e) {
+    alert("❌ Error: " + e.message);
+    $("claimBtn").disabled = false; $("claimBtn").textContent = "Claim Daily Reward";
+  }
+}
+
+function loadTeam(uid) {
+  const q = query(collection(db, "referrals"), where("referrerId", "==", uid));
+  unsubscribeTeam = onSnapshot(q, (snapshot) => {
+    let html = "";
+    if(snapshot.empty) {
+      html = '<div style="text-align:center; padding:20px; color:gray;">Aapne abhi tak kisi ko refer nahi kiya.</div>';
+    } else {
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        html += `<div class="tx-item"><div><strong>${data.referredName}</strong><br><small>Joined via your link</small></div><div style="color:var(--success); font-weight:bold;">+50 Rs</div></div>`;
+      });
+    }
+    $("teamList").innerHTML = html;
+  });
+}
+
+function loadTransactions(uid) {
+  onSnapshot(query(collection(db, "transactions"), where("userId", "==", uid)), (snapshot) => {
+    let html = "";
+    snapshot.forEach((doc) => {
+      const tx = doc.data();
+      const date = tx.createdAt ? new Date(tx.createdAt.toDate()).toLocaleString() : 'Just now';
+      const color = tx.type.includes('Purchased') || tx.type.includes('Withdrawal') ? 'red' : 'green';
+      html += `<div class="tx-item"><div><strong>${tx.type}</strong><br><small>${date}</small></div><div style="color:${color}; font-weight:bold;">Rs. ${tx.amount}</div></div>`;
+    });
+    $("transactionList").innerHTML = html || '<div style="text-align:center; padding:20px; color:gray;">No transactions yet.</div>';
+  });
+}
+
+function loadPendingDeposits(uid) {
+  onSnapshot(query(collection(db, "depositRequests"), where("userId", "==", uid), where("status", "==", "pending")), (snapshot) => {
+    let total = 0; snapshot.forEach(doc => total += doc.data().amount);
+    $("pendingDeposit").textContent = total.toFixed(2);
+  });
+}
+</script>
+</body>
+</html>

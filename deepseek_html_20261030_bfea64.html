@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Earning Admin Panel</title>
+<style>
+  :root { --primary: #1A237E; --bg: #f5f6fa; --card: #ffffff; --text: #1a1a1a; --text-muted: #6b7280; --error: #d32f2f; --success: #2e7d32; --warning: #ef6c00; --border: #e0e0e0; --radius: 14px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: sans-serif; background: var(--bg); color: var(--text); }
+  .hidden { display: none !important; }
+  .screen { min-height: 100vh; display: flex; flex-direction: column; }
+  
+  #loginScreen { justify-content: center; align-items: center; padding: 24px; background: linear-gradient(160deg, #1A237E 0%, #0D47A1 100%); }
+  .login-card { background: var(--card); border-radius: var(--radius); padding: 32px; width: 100%; max-width: 400px; }
+  .field { margin-bottom: 16px; } 
+  label { font-size: 13px; font-weight: bold; margin-bottom: 5px; display: block; }
+  input, textarea { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); outline: none; font-size: 14px; font-family: inherit;}
+  .btn { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+
+  .topbar { background: var(--primary); color: #fff; padding: 16px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+  .content { padding: 16px; padding-bottom: 80px; flex: 1; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: white; padding: 16px; border-radius: var(--radius); text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .stat-value { font-size: 20px; font-weight: bold; color: var(--primary); }
+  
+  .request-card { background: white; padding: 16px; border-radius: var(--radius); margin-bottom: 12px; border-left: 4px solid var(--warning); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .req-actions { display: flex; gap: 10px; margin-top: 12px; }
+  .btn-approve { background: var(--success); color: white; border: none; padding: 10px; border-radius: 6px; flex: 1; font-weight: bold; cursor: pointer; }
+  .btn-reject { background: var(--error); color: white; border: none; padding: 10px; border-radius: 6px; flex: 1; font-weight: bold; cursor: pointer; }
+  .btn-suspend { background: var(--warning); color: white; border: none; padding: 10px; border-radius: 6px; flex: 1; font-weight: bold; cursor: pointer; }
+  .btn-delete { background: var(--error); color: white; border: none; padding: 10px; border-radius: 6px; flex: 1; font-weight: bold; cursor: pointer; }
+  .empty-msg { text-align: center; padding: 20px; color: gray; }
+
+  .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; display: flex; border-top: 1px solid var(--border); z-index: 20; padding-bottom: env(safe-area-inset-bottom); }
+  .bottom-nav button { flex: 1; padding: 12px 2px; background: none; border: none; font-weight: bold; color: gray; cursor: pointer; font-size: 10px; }
+  .bottom-nav button.active { color: var(--primary); border-top: 2px solid var(--primary); }
+  .tab-panel { display: none; } 
+  .tab-panel.active { display: block; animation: fadeIn 0.2s; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+</style>
+</head>
+<body>
+
+<div id="loginScreen" class="screen">
+  <div class="login-card">
+    <h1 style="text-align:center; margin-bottom:20px; color:var(--primary);">Admin Panel</h1>
+    <form id="loginForm">
+      <div class="field"><input id="email" type="email" placeholder="Admin Email" required /></div>
+      <div class="field"><input id="password" type="password" placeholder="Password" required /></div>
+      <button id="loginBtn" class="btn" type="submit">Login</button>
+    </form>
+    <div id="loginError" style="color:red; margin-top:10px; text-align:center; font-size:13px;"></div>
+  </div>
+</div>
+
+<div id="appScreen" class="screen hidden">
+  <div class="topbar">
+    <div><h2>Admin Panel</h2><div style="font-size:11px; opacity:0.8;" id="adminEmailDisplay">—</div></div>
+    <button onclick="handleLogout()" style="background:rgba(255,255,255,0.2); color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer;">Logout</button>
+  </div>
+
+  <div class="content">
+    <!-- DASHBOARD -->
+    <div id="tab-dashboard" class="tab-panel active">
+      <div class="grid-2">
+        <div class="stat-card"><div>Total Users</div><div class="stat-value" id="statTotalUsers">0</div></div>
+        <div class="stat-card"><div>Pending Deposits</div><div class="stat-value" id="statPendingDeposits">0</div></div>
+      </div>
+      <button class="btn" style="background:var(--success); margin-top:10px; margin-bottom:10px;" onclick="addNewPlan()">➕ Create New VIP Plan</button>
+      <button class="btn" style="background:var(--primary);" onclick="switchTab('managePlans')">📋 Manage Plans</button>
+    </div>
+
+    <!-- MANAGE PLANS (Naya) -->
+    <div id="tab-managePlans" class="tab-panel">
+      <h3 style="margin-bottom:12px; color:var(--primary);">All Plans</h3>
+      <div id="plansManageList"><div class="empty-msg">Loading...</div></div>
+    </div>
+
+    <!-- USERS -->
+    <div id="tab-users" class="tab-panel">
+      <h3 style="margin-bottom:12px; color:var(--primary);">All Users</h3>
+      <div id="usersList"><div class="empty-msg">Loading...</div></div>
+    </div>
+
+    <!-- DEPOSITS -->
+    <div id="tab-deposits" class="tab-panel">
+      <h3 style="margin-bottom:12px; color:var(--primary);">Pending Deposits</h3>
+      <div id="depositList"><div class="empty-msg">Loading...</div></div>
+    </div>
+
+    <!-- WITHDRAWALS -->
+    <div id="tab-withdrawals" class="tab-panel">
+      <h3 style="margin-bottom:12px; color:var(--primary);">Pending Withdrawals</h3>
+      <div id="withdrawList"><div class="empty-msg">Loading...</div></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="tab-settings" class="tab-panel">
+      <h3 style="margin-bottom:12px; color:var(--primary);">App Settings</h3>
+      <div class="stat-card" style="text-align:left;">
+        <div class="field"><label>Referral Bonus Amount (PKR)</label><input id="settingRefBonus" type="number" placeholder="e.g. 50" /></div>
+        <div class="field"><label>Minimum Deposit (PKR)</label><input id="settingMinDeposit" type="number" placeholder="e.g. 300" /></div>
+        <div class="field"><label>Minimum Withdrawal (PKR)</label><input id="settingMinWithdraw" type="number" placeholder="e.g. 500" /></div>
+        
+        <hr style="margin: 15px 0; border: 0; border-top: 1px solid #ddd;">
+        
+        <!-- Naya: Payment Instructions -->
+        <div class="field"><label>Your Easypaisa/JazzCash Number</label><input id="settingPayNumber" type="text" placeholder="e.g. 03001234567" /></div>
+        <div class="field"><label>Account Title</label><input id="settingPayTitle" type="text" placeholder="e.g. Ali Khan" /></div>
+        <div class="field"><label>Payment Method Name</label><input id="settingPayMethod" type="text" placeholder="e.g. Easypaisa" /></div>
+        
+        <hr style="margin: 15px 0; border: 0; border-top: 1px solid #ddd;">
+        
+        <!-- Naya: Notice -->
+        <div class="field"><label>App Notice / Announcement (Empty = Hide)</label><textarea id="settingNotice" rows="2" placeholder="e.g. Eid Mubarak! Get 10% Bonus today."></textarea></div>
+
+        <button class="btn" onclick="saveSettings()" style="margin-top:10px;">Save All Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <button data-tab="dashboard" class="active" onclick="switchTab('dashboard')">📊 Dash</button>
+    <button data-tab="managePlans" onclick="switchTab('managePlans')">📋 Plans</button>
+    <button data-tab="users" onclick="switchTab('users')">👥 Users</button>
+    <button data-tab="deposits" onclick="switchTab('deposits')">💰 Dep</button>
+    <button data-tab="withdrawals" onclick="switchTab('withdrawals')">💸 Wth</button>
+    <button data-tab="settings" onclick="switchTab('settings')">⚙️ Set</button>
+  </nav>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, getIdTokenResult } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+import { getFirestore, collection, query, where, onSnapshot, doc, runTransaction, serverTimestamp, getCountFromServer, addDoc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+
+const firebaseConfig = { 
+  apiKey: "AIzaSyDxlvVuaz36spNRfPnimsPJBTWWFT7fhbk", 
+  authDomain: "earning-admin-app-d9b38.firebaseapp.com", 
+  projectId: "earning-admin-app-d9b38", 
+  storageBucket: "earning-admin-app-d9b38.firebasestorage.app", 
+  messagingSenderId: "602619033913", 
+  appId: "1:602619033913:web:f2282f455cd240139310e8" 
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const $ = (id) => document.getElementById(id);
+
+$("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("loginError").textContent = "";
+  $("loginBtn").disabled = true; $("loginBtn").textContent = "Logging in...";
+  try {
+    const cred = await signInWithEmailAndPassword(auth, $("email").value, $("password").value);
+    const token = await getIdTokenResult(cred.user, true);
+    if (token.claims.admin !== true) { await signOut(auth); throw new Error("Access Denied."); }
+  } catch (err) {
+    $("loginError").textContent = err.message;
+    $("loginBtn").disabled = false; $("loginBtn").textContent = "Login";
+  }
+});
+
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    $("loginScreen").classList.add("hidden"); $("appScreen").classList.remove("hidden");
+    $("adminEmailDisplay").textContent = user.email;
+    loadStats(); listenDeposits(); listenWithdrawals(); listenUsers(); listenPlans(); loadSettings();
+  } else {
+    $("loginScreen").classList.remove("hidden"); $("appScreen").classList.add("hidden");
+    $("loginBtn").disabled = false; $("loginBtn").textContent = "Login";
+  }
+});
+
+window.handleLogout = () => signOut(auth);
+window.switchTab = (name) => {
+  document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
+  document.querySelectorAll(".bottom-nav button").forEach((b) => b.classList.remove("active"));
+  $("tab-" + name)?.classList.add("active");
+  document.querySelector(`.bottom-nav button[data-tab="${name}"]`)?.classList.add("active");
+}
+
+async function loadStats() {
+  try {
+    const usersSnap = await getCountFromServer(collection(db, "users"));
+    const depSnap = await getCountFromServer(query(collection(db, "depositRequests"), where("status", "==", "pending")));
+    $("statTotalUsers").textContent = usersSnap.data().count;
+    $("statPendingDeposits").textContent = depSnap.data().count;
+  } catch(e) { console.log(e); }
+}
+
+// ==========================================
+// MANAGE PLANS
+// ==========================================
+function listenPlans() {
+  onSnapshot(collection(db, "plans"), (snapshot) => {
+    let html = "";
+    snapshot.forEach((docSnap) => {
+      const p = docSnap.data();
+      html += `<div class="request-card" style="border-left-color: var(--primary);">
+        <strong>${p.name}</strong> (Rs. ${p.price})<br>
+        <span style="font-size:12px; color:gray;">Daily: Rs. ${p.dailyReward} | Days: ${p.durationDays}</span>
+        <div class="req-actions">
+          <button class="btn-delete" onclick="deletePlan('${docSnap.id}', '${p.name}')">Delete Plan</button>
+        </div>
+      </div>`;
+    });
+    $("plansManageList").innerHTML = html || "<div class='empty-msg'>No plans created yet.</div>";
+  });
+}
+
+window.deletePlan = async function(planId, name) {
+  if(!confirm(`Are you sure you want to delete "${name}"?`)) return;
+  try {
+    await deleteDoc(doc(db, "plans", planId));
+    alert("✅ Plan deleted successfully!");
+  } catch(e) { alert("❌ Error: " + e.message); }
+}
+
+// ==========================================
+// SETTINGS
+// ==========================================
+async function loadSettings() {
+  try {
+    const snap = await getDoc(doc(db, "appSettings", "config"));
+    if(snap.exists()) {
+      const data = snap.data();
+      $("settingRefBonus").value = data.referralBonus || 50;
+      $("settingMinDeposit").value = data.minDeposit || 300;
+      $("settingMinWithdraw").value = data.minWithdraw || 500;
+      $("settingPayNumber").value = data.paymentNumber || "";
+      $("settingPayTitle").value = data.paymentTitle || "";
+      $("settingPayMethod").value = data.paymentMethod || "";
+      $("settingNotice").value = data.notice || "";
+    }
+  } catch(e) { console.log(e); }
+}
+
+window.saveSettings = async function() {
+  const refBonus = parseFloat($("settingRefBonus").value) || 50;
+  const minDep = parseFloat($("settingMinDeposit").value) || 300;
+  const minWth = parseFloat($("settingMinWithdraw").value) || 500;
+  const payNumber = $("settingPayNumber").value.trim();
+  const payTitle = $("settingPayTitle").value.trim();
+  const payMethod = $("settingPayMethod").value.trim();
+  const notice = $("settingNotice").value.trim();
+  try {
+    await setDoc(doc(db, "appSettings", "config"), { 
+      referralBonus: refBonus, minDeposit: minDep, minWithdraw: minWth,
+      paymentNumber: payNumber, paymentTitle: payTitle, paymentMethod: payMethod,
+      notice: notice, updatedAt: serverTimestamp() 
+    }, { merge: true });
+    alert("✅ Settings Saved Successfully!");
+  } catch(e) { alert("❌ Error: " + e.message); }
+}
+
+// ==========================================
+// USERS MANAGEMENT
+// ==========================================
+function listenUsers() {
+  onSnapshot(collection(db, "users"), (snapshot) => {
+    let html = "";
+    snapshot.forEach((docSnap) => {
+      const u = docSnap.data();
+      const isSuspended = u.status === "suspended";
+      html += `<div class="request-card" style="border-left-color: ${isSuspended ? 'var(--error)' : 'var(--primary)'};">
+        <strong>${u.fullName}</strong> (${u.email})<br>
+        <span style="font-size:12px; color:gray;">Balance: Rs. ${(u.balance||0).toFixed(2)} | Status: ${u.status || 'active'}</span>
+        <div class="req-actions">
+          <button class="btn-approve" onclick="addUserBalance('${docSnap.id}', '${u.fullName}')">Add Bal</button>
+          <button class="${isSuspended ? 'btn-approve' : 'btn-suspend'}" onclick="toggleSuspend('${docSnap.id}', '${u.status || 'active'}')">
+            ${isSuspended ? 'Activate' : 'Suspend'}
+          </button>
+        </div>
+      </div>`;
+    });
+    $("usersList").innerHTML = html || "<div class='empty-msg'>No users found.</div>";
+  });
+}
+
+window.toggleSuspend = async function(userId, currentStatus) {
+  const newStatus = currentStatus === "active" ? "suspended" : "active";
+  try {
+    await runTransaction(db, async (t) => { t.update(doc(db, "users", userId), { status: newStatus }); });
+    alert(`User is now ${newStatus}`);
+  } catch(e) { alert(e.message); }
+}
+
+window.addUserBalance = async function(userId, name) {
+  const amount = prompt(`Enter amount to add for ${name}:`);
+  if(!amount || isNaN(amount)) return;
+  try {
+    await runTransaction(db, async (transaction) => {
+      const userRef = doc(db, "users", userId);
+      const userDoc = await transaction.get(userRef);
+      transaction.update(userRef, { balance: (userDoc.data().balance || 0) + parseFloat(amount) });
+      transaction.set(doc(collection(db, "transactions")), { userId, amount: parseFloat(amount), type: "Admin Bonus", createdAt: serverTimestamp() });
+    });
+    alert("✅ Balance added successfully!");
+  } catch(e) { alert("❌ Error: " + e.message); }
+}
+
+// ==========================================
+// DEPOSIT ACTIONS
+// ==========================================
+window.approveDeposit = async function(reqId, userId, amount) {
+  if(!confirm("Approve this deposit?")) return;
+  try {
+    await runTransaction(db, async (transaction) => {
+      const userRef = doc(db, "users", userId); const reqRef = doc(db, "depositRequests", reqId);
+      const userDoc = await transaction.get(userRef);
+      transaction.update(userRef, { balance: (userDoc.data().balance || 0) + amount });
+      transaction.update(reqRef, { status: "approved", reviewedAt: serverTimestamp() });
+      transaction.set(doc(collection(db, "transactions")), { userId, amount, type: "Deposit", createdAt: serverTimestamp() });
+    });
+    alert("✅ Deposit Approved!"); loadStats();
+  } catch (e) { alert("❌ Error: " + e.message); }
+}
+
+window.rejectDeposit = async function(reqId) {
+  if(!confirm("Reject this deposit?")) return;
+  await runTransaction(db, async (t) => { t.update(doc(db, "depositRequests", reqId), { status: "rejected", reviewedAt: serverTimestamp() }); });
+  alert("Deposit Rejected"); loadStats();
+}
+
+function listenDeposits() {
+  onSnapshot(query(collection(db, "depositRequests"), where("status", "==", "pending")), (snapshot) => {
+    let html = "";
+    snapshot.forEach((docSnap) => {
+      const d = docSnap.data();
+      html += `<div class="request-card">
+        <strong>${d.userName}</strong><br>
+        Method: ${d.method || 'N/A'}<br>
+        Sender Acc: ${d.senderAccount || 'N/A'}<br>
+        Amount: Rs. ${d.amount}<br>
+        Txn ID: ${d.txId}
+        <div class="req-actions">
+          <button class="btn-approve" onclick="approveDeposit('${docSnap.id}', '${d.userId}', ${d.amount})">Approve</button>
+          <button class="btn-reject" onclick="rejectDeposit('${docSnap.id}')">Reject</button>
+        </div>
+      </div>`;
+    });
+    $("depositList").innerHTML = html || "<div class='empty-msg'>No pending deposits.</div>";
+  });
+}
+
+// ==========================================
+// WITHDRAWAL ACTIONS
+// ==========================================
+window.approveWithdraw = async function(reqId, userId, amount) {
+  if(!confirm("Approve withdrawal?")) return;
+  try {
+    await runTransaction(db, async (transaction) => {
+      const userRef = doc(db, "users", userId); const reqRef = doc(db, "withdrawalRequests", reqId);
+      const userDoc = await transaction.get(userRef);
+      if((userDoc.data().balance || 0) < amount) throw new Error("Insufficient balance!");
+      transaction.update(userRef, { balance: userDoc.data().balance - amount });
+      transaction.update(reqRef, { status: "approved", reviewedAt: serverTimestamp() });
+      transaction.set(doc(collection(db, "transactions")), { userId, amount, type: "Withdrawal", createdAt: serverTimestamp() });
+    });
+    alert("✅ Withdrawal Approved!"); loadStats();
+  } catch (e) { alert("❌ Error: " + e.message); }
+}
+
+window.rejectWithdraw = async function(reqId) {
+  if(!confirm("Reject this withdrawal?")) return;
+  await runTransaction(db, async (t) => { t.update(doc(db, "withdrawalRequests", reqId), { status: "rejected", reviewedAt: serverTimestamp() }); });
+  alert("Withdrawal Rejected"); loadStats();
+}
+
+function listenWithdrawals() {
+  onSnapshot(query(collection(db, "withdrawalRequests"), where("status", "==", "pending")), (snapshot) => {
+    let html = "";
+    snapshot.forEach((docSnap) => {
+      const d = docSnap.data();
+      html += `<div class="request-card" style="border-left-color: var(--error);">
+        <strong>${d.userName}</strong><br>
+        Method: ${d.method || 'N/A'}<br>
+        Acc No: ${d.accountNumber || 'N/A'}<br>
+        Acc Title: ${d.accountTitle || 'N/A'}<br>
+        Amount: Rs. ${d.amount}
+        <div class="req-actions">
+          <button class="btn-approve" onclick="approveWithdraw('${docSnap.id}', '${d.userId}', ${d.amount})">Approve</button>
+          <button class="btn-reject" onclick="rejectWithdraw('${docSnap.id}')">Reject</button>
+        </div>
+      </div>`;
+    });
+    $("withdrawList").innerHTML = html || "<div class='empty-msg'>No pending withdrawals.</div>";
+  });
+}
+
+// ==========================================
+// PLAN CREATION
+// ==========================================
+window.addNewPlan = async function() {
+  const name = prompt("Plan Name (e.g. VIP 1):"); const price = prompt("Price (PKR):");
+  const dailyReward = prompt("Daily Reward (PKR):"); const duration = prompt("Duration (Days):");
+  if(!name || !price || !dailyReward || !duration) return alert("All fields required!");
+  try {
+    await addDoc(collection(db, "plans"), { name, price: parseFloat(price), dailyReward: parseFloat(dailyReward), durationDays: parseInt(duration), createdAt: serverTimestamp() });
+    alert("✅ VIP Plan created successfully!");
+  } catch(e) { alert("❌ Error: " + e.message); }
+}
+</script>
+</body>
+</html>
